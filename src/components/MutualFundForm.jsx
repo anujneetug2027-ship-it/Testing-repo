@@ -212,4 +212,3 @@ function MutualFundForm({ onAddMutualFund }) {
 }
 
 export default MutualFundForm;
-
