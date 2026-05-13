@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import NetWorthDisplay from './components/NetWorthDisplay';
 import AssetForm from './components/AssetForm';
-import MutualFundForm from './components/MutualFundForm'; // Imported New Component
+import MutualFundForm from './components/MutualFundForm';
 
 function App() {
   const [netWorth, setNetWorth] = useState(1000);
@@ -11,7 +11,6 @@ function App() {
     setNetWorth((prevWorth) => prevWorth + totalEquityWorth);
   };
 
-  // Logic wrapper to handle adding computed values from the live API
   const handleAddMutualFundValue = (calculatedCurrentWorth) => {
     setNetWorth((prevWorth) => prevWorth + calculatedCurrentWorth);
   };
@@ -25,8 +24,6 @@ function App() {
         
         <NetWorthDisplay total={netWorth} />
         <AssetForm onAddAsset={handleAddAsset} />
-        
-        {/* Render the Mutual Fund Endpoint Engine Interface */}
         <MutualFundForm onAddMutualFund={handleAddMutualFundValue} />
       </div>
     </div>
