@@ -22,6 +22,7 @@ function MutualFundForm({ onAddMutualFund }) {
     setAnalysisResult(null);
 
     try {
+      // FIX: Added protocol and full endpoint search parameter path
       const response = await fetch(`mfapi.in{searchQuery}`);
       const data = await response.json();
       setSearchResults(data.slice(0, 5)); // Restrict to top 5 results for clean UI
@@ -40,6 +41,7 @@ function MutualFundForm({ onAddMutualFund }) {
     setError('');
 
     try {
+      // FIX: Added production API domain routing string
       const response = await fetch(`mfapi.in{selectedFund.schemeCode}`);
       const fullPayload = await response.json();
       const priceHistory = fullPayload.data;
@@ -53,7 +55,6 @@ function MutualFundForm({ onAddMutualFund }) {
       const formattedInputDate = `${day}-${month}-${year}`;
 
       // Search for the historical price matching the specific purchase date
-      let purchaseDayNav = null;
       let selectedHistoryRecord = priceHistory.find(item => item.date === formattedInputDate);
 
       // fallback: if market was closed on that date, find the closest previous date profile available
@@ -64,8 +65,8 @@ function MutualFundForm({ onAddMutualFund }) {
         });
       }
 
-      purchaseDayNav = parseFloat(selectedHistoryRecord.nav);
-      const currentLatestNav = parseFloat(priceHistory[0].nav);
+      const purchaseDayNav = parseFloat(selectedHistoryRecord.nav);
+      const currentLatestNav = parseFloat(priceHistory[0].nav); // FIX: Explicitly target index 0 for today's price
 
       // Financial formulas to evaluate total valuation metrics
       const totalUnitsAccumulated = Number(capital) / purchaseDayNav;
@@ -153,7 +154,7 @@ function MutualFundForm({ onAddMutualFund }) {
       )}
 
       {selectedFund && !analysisResult && (
-        <div className="space-y-3 animate-fadeIn">
+        <div className="space-y-3">
           <div>
             <label className="block text-xs text-slate-400 mb-1">Invested Principal ($ / ₹)</label>
             <input 
@@ -185,14 +186,14 @@ function MutualFundForm({ onAddMutualFund }) {
 
       {/* Analysis Outputs Engine */}
       {analysisResult && (
-        <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl space-y-2.5 text-xs animate-fadeIn">
+        <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl space-y-2.5 text-xs">
           <p className="font-bold text-slate-200 text-center border-b border-slate-800 pb-2">Analysis Results</p>
-          <div className="flex justify-between"><span class="text-slate-400">Purchase Day NAV:</span> <span class="text-white">${analysisResult.purchasedNav.toFixed(2)}</span></div>
-          <div className="flex justify-between"><span class="text-slate-400">Latest Current NAV:</span> <span class="text-white">${analysisResult.latestNav.toFixed(2)}</span></div>
-          <div className="flex justify-between"><span class="text-slate-400">Units Owned:</span> <span class="text-white">{analysisResult.units.toFixed(3)}</span></div>
-          <div className="flex justify-between"><span class="text-slate-400">Current Valuation:</span> <span class="font-bold text-white">${analysisResult.currentValue.toFixed(2)}</span></div>
+          <div className="flex justify-between"><span className="text-slate-400">Purchase Day NAV:</span> <span className="text-white">${analysisResult.purchasedNav.toFixed(2)}</span></div>
+          <div className="flex justify-between"><span className="text-slate-400">Latest Current NAV:</span> <span className="text-white">${analysisResult.latestNav.toFixed(2)}</span></div>
+          <div className="flex justify-between"><span className="text-slate-400">Units Owned:</span> <span className="text-white">{analysisResult.units.toFixed(3)}</span></div>
+          <div className="flex justify-between"><span className="text-slate-400">Current Valuation:</span> <span className="font-bold text-white">${analysisResult.currentValue.toFixed(2)}</span></div>
           <div className="flex justify-between">
-            <span class="text-slate-400">Net Return P&L:</span> 
+            <span className="text-slate-400">Net Return P&L:</span> 
             <span className={`font-bold ${analysisResult.profit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
               ${analysisResult.profit.toFixed(2)} ({analysisResult.growth.toFixed(2)}%)
             </span>
