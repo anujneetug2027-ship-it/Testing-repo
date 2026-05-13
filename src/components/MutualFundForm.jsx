@@ -21,14 +21,32 @@ function MutualFundForm({ onAddMutualFund }) {
     setSelectedFund(null);
     setAnalysisResult(null);
 
+    // FIX: Routing the request through a public CORS Proxy to bypass browser security locks
+    const targetUrl = `mfapi.in{searchQuery}`;
+    const proxyUrl = `corsproxy.io{encodeURIComponent(targetUrl)}`;
+
+    console.log("=== STEP 1: START SEARCH ===");
+    console.log("Original Target URL:", targetUrl);
+    console.log("Proxied URL:", proxyUrl);
+
     try {
-      // FIX: Added protocol and full endpoint search parameter path
-      const response = await fetch(`mfapi.in{searchQuery}`);
+      const response = await fetch(proxyUrl);
+      console.log("HTTP Response Status:", response.status);
+      
+      if (!response.ok) {
+        throw new Error(`Server returned HTTP Status Code: ${response.status}`);
+      }
+
       const data = await response.json();
-      setSearchResults(data.slice(0, 5)); // Restrict to top 5 results for clean UI
+      console.log("Data Received Successfully. Array Length:", data.length);
+      console.log("Sample Data Row:", data[0]);
+
+      setSearchResults(data.slice(0, 5)); 
       if (data.length === 0) setError('No matching mutual funds found.');
     } catch (err) {
-      setError('Failed to fetch fund schemes. Check network connection.');
+      // Diagnostic check engine logging to browser tool dashboard
+      console.error("CRITICAL ERROR IN FETCH LOGIC:", err);
+      setError(`API Error: ${err.message}. Open browser console (F12) for diagnostic traces.`);
     } finally {
       setLoading(false);
     }
@@ -40,35 +58,53 @@ function MutualFundForm({ onAddMutualFund }) {
     setLoading(true);
     setError('');
 
+    const targetUrl = `mfapi.in{selectedFund.schemeCode}`;
+    const proxyUrl = `corsproxy.io{encodeURIComponent(targetUrl)}`;
+
+    console.log("=== STEP 2: START ANALYSIS ===");
+    console.log("Target Scheme Code:", selectedFund.schemeCode);
+    console.log("Proxied URL:", proxyUrl);
+
     try {
-      // FIX: Added production API domain routing string
-      const response = await fetch(`mfapi.in{selectedFund.schemeCode}`);
+      const response = await fetch(proxyUrl);
+      console.log("HTTP Response Status:", response.status);
+
+      if (!response.ok) {
+        throw new Error(`Server returned HTTP Status Code: ${response.status}`);
+      }
+
       const fullPayload = await response.json();
       const priceHistory = fullPayload.data;
+
+      console.log("Fund Metadata House:", fullPayload.meta?.fund_house);
+      console.log("Total Historical Price Records Loaded:", priceHistory?.length);
 
       if (!priceHistory || priceHistory.length === 0) {
         throw new Error("No pricing history data found for this fund scheme.");
       }
 
-      // Format input date (YYYY-MM-DD) to match API payload text format (DD-MM-YYYY)
       const [year, month, day] = purchaseDate.split('-');
       const formattedInputDate = `${day}-${month}-${year}`;
+      console.log("User Purchase Target Date:", purchaseDate, "-> Transformed API Format:", formattedInputDate);
 
-      // Search for the historical price matching the specific purchase date
       let selectedHistoryRecord = priceHistory.find(item => item.date === formattedInputDate);
 
-      // fallback: if market was closed on that date, find the closest previous date profile available
       if (!selectedHistoryRecord) {
+        console.warn(`Exact match missing for ${formattedInputDate}. Calculating fallback closest market date row...`);
         selectedHistoryRecord = priceHistory.reduce((closest, current) => {
           return Math.abs(new Date(current.date.split('-').reverse().join('-')) - new Date(purchaseDate)) <
                  Math.abs(new Date(closest.date.split('-').reverse().join('-')) - new Date(purchaseDate)) ? current : closest;
         });
       }
 
-      const purchaseDayNav = parseFloat(selectedHistoryRecord.nav);
-      const currentLatestNav = parseFloat(priceHistory[0].nav); // FIX: Explicitly target index 0 for today's price
+      console.log("Resolved Historical Pricing Record:", selectedHistoryRecord);
 
-      // Financial formulas to evaluate total valuation metrics
+      const purchaseDayNav = parseFloat(selectedHistoryRecord.nav);
+      const currentLatestNav = parseFloat(priceHistory[0].nav); 
+
+      console.log("Calculated Purchase Day NAV:", purchaseDayNav);
+      console.log("Calculated Current Latest NAV:", currentLatestNav);
+
       const totalUnitsAccumulated = Number(capital) / purchaseDayNav;
       const computedCurrentValue = totalUnitsAccumulated * currentLatestNav;
       const netProfitOrLoss = computedCurrentValue - Number(capital);
@@ -84,7 +120,8 @@ function MutualFundForm({ onAddMutualFund }) {
         fundName: fullPayload.meta.scheme_name
       });
     } catch (err) {
-      setError('Could not trace historic calculations for selected date.');
+      console.error("ANALYSIS CALCULATION ERROR:", err);
+      setError(`Calculation Error: ${err.message}. Trace execution stack via F12 inspector.`);
     } finally {
       setLoading(false);
     }
@@ -94,7 +131,6 @@ function MutualFundForm({ onAddMutualFund }) {
     if (!analysisResult) return;
     onAddMutualFund(analysisResult.currentValue);
     
-    // Clear state inputs completely
     setSearchQuery('');
     setSearchResults([]);
     setSelectedFund(null);
@@ -107,7 +143,6 @@ function MutualFundForm({ onAddMutualFund }) {
     <div className="space-y-4 border-t border-slate-800 pt-6">
       <h3 className="text-sm font-semibold text-slate-300">Add Mutual Fund (Live API Check)</h3>
       
-      {/* Search Input Panel */}
       <div className="flex gap-2">
         <input 
           type="text"
@@ -125,9 +160,8 @@ function MutualFundForm({ onAddMutualFund }) {
       </div>
 
       {loading && <p className="text-xs text-slate-400 animate-pulse">Querying public servers...</p>}
-      {error && <p className="text-xs text-rose-400">{error}</p>}
+      {error && <p className="text-xs text-rose-400 font-mono bg-rose-950/20 p-2 border border-rose-900/30 rounded-lg">{error}</p>}
 
-      {/* Select Box Results dropdown */}
       {searchResults.length > 0 && !selectedFund && (
         <div className="bg-slate-950 border border-slate-800 rounded-lg divide-y divide-slate-800 overflow-hidden">
           {searchResults.map((fund) => (
@@ -135,6 +169,7 @@ function MutualFundForm({ onAddMutualFund }) {
               key={fund.schemeCode}
               type="button"
               onClick={() => {
+                console.log("User Selected Scheme:", fund);
                 setSelectedFund(fund);
                 setSearchResults([]);
               }}
@@ -146,7 +181,6 @@ function MutualFundForm({ onAddMutualFund }) {
         </div>
       )}
 
-      {/* If a fund is chosen, unlock valuation form fields */}
       {selectedFund && (
         <div className="bg-slate-800/30 border border-emerald-900/30 p-3 rounded-lg text-xs text-emerald-400">
           📍 Selected: <span className="font-semibold text-slate-200">{selectedFund.schemeName}</span>
@@ -184,7 +218,6 @@ function MutualFundForm({ onAddMutualFund }) {
         </div>
       )}
 
-      {/* Analysis Outputs Engine */}
       {analysisResult && (
         <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl space-y-2.5 text-xs">
           <p className="font-bold text-slate-200 text-center border-b border-slate-800 pb-2">Analysis Results</p>
