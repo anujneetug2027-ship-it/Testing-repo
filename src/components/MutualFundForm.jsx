@@ -21,7 +21,7 @@ function MutualFundForm({ onAddMutualFund }) {
     setSelectedFund(null);
     setAnalysisResult(null);
 
-    // FIXED PRODUCTION ROUTE: Cleaned template backticks and added absolute cross-origin pathing parameters
+    // FIXED PRODUCTION ROUTE: Configured explicit proxy parameters for mobile browser systems
     const targetUrl = `mfapi.in{searchQuery}`;
     const proxyUrl = `corsproxy.io{encodeURIComponent(targetUrl)}`;
 
@@ -34,27 +34,26 @@ function MutualFundForm({ onAddMutualFund }) {
 
       const data = await response.json();
 
-      // Check if data is array and slice top 5
       if (Array.isArray(data)) {
         setSearchResults(data.slice(0, 5));
         if (data.length === 0) setError('No matching mutual funds found.');
       } else {
-        throw new Error("Invalid response format received from data proxy.");
+        throw new Error("Proxy response parsing error. Try another keyword.");
       }
     } catch (err) {
-      setError(`Search Error: ${err.message}. Try typing a direct brand word like 'SBI' or 'Tata'.`);
+      setError(`Search Error: ${err.message}. Try typing 'SBI' or 'Tata'.`);
     } finally {
       setLoading(false);
     }
   };
 
-  // 2. Fetch historic NAV records and run investment tracking mathematics
+  // 2. Fetch historic NAV records and run portfolio calculations
   const handleAnalyzeFund = async () => {
     if (!selectedFund || !capital || !purchaseDate) return;
     setLoading(true);
     setError('');
 
-    // FIXED PRODUCTION ROUTE: Ensures individual scheme code path is isolated correctly
+    // FIXED PRODUCTION ROUTE: Applied exact syntax parameter handling
     const targetUrl = `mfapi.in{selectedFund.schemeCode}`;
     const proxyUrl = `corsproxy.io{encodeURIComponent(targetUrl)}`;
 
@@ -72,13 +71,13 @@ function MutualFundForm({ onAddMutualFund }) {
         throw new Error("Historical evaluation values missing for this fund.");
       }
 
-      // Convert layout input date (YYYY-MM-DD) to matching API format (DD-MM-YYYY)
+      // Convert layout date (YYYY-MM-DD) to API format (DD-MM-YYYY)
       const [year, month, day] = purchaseDate.split('-');
       const formattedInputDate = `${day}-${month}-${year}`;
 
       let selectedHistoryRecord = priceHistory.find(item => item.date === formattedInputDate);
 
-      // Fallback Engine: If market was closed on selection date, match closest available profile
+      // Fallback: If market was closed on selection date, match closest available profile
       if (!selectedHistoryRecord) {
         selectedHistoryRecord = priceHistory.reduce((closest, current) => {
           return Math.abs(new Date(current.date.split('-').reverse().join('-')) - new Date(purchaseDate)) <
@@ -87,7 +86,7 @@ function MutualFundForm({ onAddMutualFund }) {
       }
 
       const purchaseDayNav = parseFloat(selectedHistoryRecord.nav);
-      const currentLatestNav = parseFloat(priceHistory[0].nav); // Fixed: target index 0 for current live NAV
+      const currentLatestNav = parseFloat(priceHistory[0].nav); 
 
       const totalUnitsAccumulated = Number(capital) / purchaseDayNav;
       const computedCurrentValue = totalUnitsAccumulated * currentLatestNav;
@@ -104,7 +103,7 @@ function MutualFundForm({ onAddMutualFund }) {
         fundName: fullPayload.meta.scheme_name
       });
     } catch (err) {
-      setError(`Calculation Loop Fault: ${err.message}`);
+      setError(`Calculation Fault: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -114,7 +113,6 @@ function MutualFundForm({ onAddMutualFund }) {
     if (!analysisResult) return;
     onAddMutualFund(analysisResult.currentValue);
     
-    // Wipe states
     setSearchQuery('');
     setSearchResults([]);
     setSelectedFund(null);
@@ -147,7 +145,7 @@ function MutualFundForm({ onAddMutualFund }) {
       {error && <p className="text-xs text-rose-400 bg-rose-950/20 p-2 border border-rose-900/30 rounded-lg font-mono">{error}</p>}
 
       {searchResults.length > 0 && !selectedFund && (
-        <div className="bg-slate-950 border border-slate-800 rounded-lg divide-y divide-slate-800 overflow-hidden">
+        <div className="bg-slate-950 border border-slate-800 rounded-lg divide-y divide-slate-800 overflow-hidden max-h-48 overflow-y-auto">
           {searchResults.map((fund) => (
             <button
               key={fund.schemeCode}
@@ -173,7 +171,7 @@ function MutualFundForm({ onAddMutualFund }) {
       {selectedFund && !analysisResult && (
         <div className="space-y-3">
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Invested Principal ($ / ₹)</label>
+            <label className="block text-xs text-slate-400 mb-1">Invested Principal</label>
             <input 
               type="number" 
               placeholder="Enter principal amount"
@@ -204,14 +202,14 @@ function MutualFundForm({ onAddMutualFund }) {
       {analysisResult && (
         <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl space-y-2.5 text-xs">
           <p className="font-bold text-slate-200 text-center border-b border-slate-800 pb-2">Analysis Results</p>
-          <div className="flex justify-between"><span className="text-slate-400">Purchase Day NAV:</span> <span className="text-white">${analysisResult.purchasedNav.toFixed(2)}</span></div>
-          <div className="flex justify-between"><span className="text-slate-400">Latest Current NAV:</span> <span className="text-white">${analysisResult.latestNav.toFixed(2)}</span></div>
+          <div className="flex justify-between"><span className="text-slate-400">Purchase Day NAV:</span> <span className="text-white">₹{analysisResult.purchasedNav.toFixed(2)}</span></div>
+          <div className="flex justify-between"><span className="text-slate-400">Latest Current NAV:</span> <span className="text-white">₹{analysisResult.latestNav.toFixed(2)}</span></div>
           <div className="flex justify-between"><span className="text-slate-400">Units Owned:</span> <span className="text-white">{analysisResult.units.toFixed(3)}</span></div>
-          <div className="flex justify-between"><span className="text-slate-400">Current Valuation:</span> <span className="font-bold text-white">${analysisResult.currentValue.toFixed(2)}</span></div>
+          <div className="flex justify-between"><span className="text-slate-400">Current Valuation:</span> <span className="font-bold text-white">₹{analysisResult.currentValue.toFixed(2)}</span></div>
           <div className="flex justify-between">
             <span className="text-slate-400">Net Return P&L:</span> 
             <span className={`font-bold ${analysisResult.profit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-              ${analysisResult.profit.toFixed(2)} ({analysisResult.growth.toFixed(2)}%)
+              ₹{analysisResult.profit.toFixed(2)} ({analysisResult.growth.toFixed(2)}%)
             </span>
           </div>
           
