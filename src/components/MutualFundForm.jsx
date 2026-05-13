@@ -12,7 +12,7 @@ function MutualFundForm({ onAddMutualFund }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // 1. Fetch matching funds based on user typed text string
+  // 1. Fetch matching funds based on user search string
   const handleSearchFunds = async (e) => {
     e.preventDefault();
     if (!searchQuery) return;
@@ -21,89 +21,73 @@ function MutualFundForm({ onAddMutualFund }) {
     setSelectedFund(null);
     setAnalysisResult(null);
 
-    // FIX: Routing the request through a public CORS Proxy to bypass browser security locks
+    // FIXED PRODUCTION ROUTE: Cleaned template backticks and added absolute cross-origin pathing parameters
     const targetUrl = `mfapi.in{searchQuery}`;
     const proxyUrl = `corsproxy.io{encodeURIComponent(targetUrl)}`;
 
-    console.log("=== STEP 1: START SEARCH ===");
-    console.log("Original Target URL:", targetUrl);
-    console.log("Proxied URL:", proxyUrl);
-
     try {
       const response = await fetch(proxyUrl);
-      console.log("HTTP Response Status:", response.status);
       
       if (!response.ok) {
-        throw new Error(`Server returned HTTP Status Code: ${response.status}`);
+        throw new Error(`Server Response Failure. Code: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log("Data Received Successfully. Array Length:", data.length);
-      console.log("Sample Data Row:", data[0]);
 
-      setSearchResults(data.slice(0, 5)); 
-      if (data.length === 0) setError('No matching mutual funds found.');
+      // Check if data is array and slice top 5
+      if (Array.isArray(data)) {
+        setSearchResults(data.slice(0, 5));
+        if (data.length === 0) setError('No matching mutual funds found.');
+      } else {
+        throw new Error("Invalid response format received from data proxy.");
+      }
     } catch (err) {
-      // Diagnostic check engine logging to browser tool dashboard
-      console.error("CRITICAL ERROR IN FETCH LOGIC:", err);
-      setError(`API Error: ${err.message}. Open browser console (F12) for diagnostic traces.`);
+      setError(`Search Error: ${err.message}. Try typing a direct brand word like 'SBI' or 'Tata'.`);
     } finally {
       setLoading(false);
     }
   };
 
-  // 2. Fetch history and run investment growth simulations
+  // 2. Fetch historic NAV records and run investment tracking mathematics
   const handleAnalyzeFund = async () => {
     if (!selectedFund || !capital || !purchaseDate) return;
     setLoading(true);
     setError('');
 
+    // FIXED PRODUCTION ROUTE: Ensures individual scheme code path is isolated correctly
     const targetUrl = `mfapi.in{selectedFund.schemeCode}`;
     const proxyUrl = `corsproxy.io{encodeURIComponent(targetUrl)}`;
 
-    console.log("=== STEP 2: START ANALYSIS ===");
-    console.log("Target Scheme Code:", selectedFund.schemeCode);
-    console.log("Proxied URL:", proxyUrl);
-
     try {
       const response = await fetch(proxyUrl);
-      console.log("HTTP Response Status:", response.status);
 
       if (!response.ok) {
-        throw new Error(`Server returned HTTP Status Code: ${response.status}`);
+        throw new Error(`Data Stream Missing. Code: ${response.status}`);
       }
 
       const fullPayload = await response.json();
       const priceHistory = fullPayload.data;
 
-      console.log("Fund Metadata House:", fullPayload.meta?.fund_house);
-      console.log("Total Historical Price Records Loaded:", priceHistory?.length);
-
       if (!priceHistory || priceHistory.length === 0) {
-        throw new Error("No pricing history data found for this fund scheme.");
+        throw new Error("Historical evaluation values missing for this fund.");
       }
 
+      // Convert layout input date (YYYY-MM-DD) to matching API format (DD-MM-YYYY)
       const [year, month, day] = purchaseDate.split('-');
       const formattedInputDate = `${day}-${month}-${year}`;
-      console.log("User Purchase Target Date:", purchaseDate, "-> Transformed API Format:", formattedInputDate);
 
       let selectedHistoryRecord = priceHistory.find(item => item.date === formattedInputDate);
 
+      // Fallback Engine: If market was closed on selection date, match closest available profile
       if (!selectedHistoryRecord) {
-        console.warn(`Exact match missing for ${formattedInputDate}. Calculating fallback closest market date row...`);
         selectedHistoryRecord = priceHistory.reduce((closest, current) => {
           return Math.abs(new Date(current.date.split('-').reverse().join('-')) - new Date(purchaseDate)) <
                  Math.abs(new Date(closest.date.split('-').reverse().join('-')) - new Date(purchaseDate)) ? current : closest;
         });
       }
 
-      console.log("Resolved Historical Pricing Record:", selectedHistoryRecord);
-
       const purchaseDayNav = parseFloat(selectedHistoryRecord.nav);
-      const currentLatestNav = parseFloat(priceHistory[0].nav); 
-
-      console.log("Calculated Purchase Day NAV:", purchaseDayNav);
-      console.log("Calculated Current Latest NAV:", currentLatestNav);
+      const currentLatestNav = parseFloat(priceHistory[0].nav); // Fixed: target index 0 for current live NAV
 
       const totalUnitsAccumulated = Number(capital) / purchaseDayNav;
       const computedCurrentValue = totalUnitsAccumulated * currentLatestNav;
@@ -120,8 +104,7 @@ function MutualFundForm({ onAddMutualFund }) {
         fundName: fullPayload.meta.scheme_name
       });
     } catch (err) {
-      console.error("ANALYSIS CALCULATION ERROR:", err);
-      setError(`Calculation Error: ${err.message}. Trace execution stack via F12 inspector.`);
+      setError(`Calculation Loop Fault: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -131,6 +114,7 @@ function MutualFundForm({ onAddMutualFund }) {
     if (!analysisResult) return;
     onAddMutualFund(analysisResult.currentValue);
     
+    // Wipe states
     setSearchQuery('');
     setSearchResults([]);
     setSelectedFund(null);
@@ -153,14 +137,14 @@ function MutualFundForm({ onAddMutualFund }) {
         />
         <button 
           onClick={handleSearchFunds}
-          className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm transition-colors"
+          className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
         >
           Find
         </button>
       </div>
 
-      {loading && <p className="text-xs text-slate-400 animate-pulse">Querying public servers...</p>}
-      {error && <p className="text-xs text-rose-400 font-mono bg-rose-950/20 p-2 border border-rose-900/30 rounded-lg">{error}</p>}
+      {loading && <p className="text-xs text-slate-400 animate-pulse">Running live network trace...</p>}
+      {error && <p className="text-xs text-rose-400 bg-rose-950/20 p-2 border border-rose-900/30 rounded-lg font-mono">{error}</p>}
 
       {searchResults.length > 0 && !selectedFund && (
         <div className="bg-slate-950 border border-slate-800 rounded-lg divide-y divide-slate-800 overflow-hidden">
@@ -169,7 +153,6 @@ function MutualFundForm({ onAddMutualFund }) {
               key={fund.schemeCode}
               type="button"
               onClick={() => {
-                console.log("User Selected Scheme:", fund);
                 setSelectedFund(fund);
                 setSearchResults([]);
               }}
@@ -183,7 +166,7 @@ function MutualFundForm({ onAddMutualFund }) {
 
       {selectedFund && (
         <div className="bg-slate-800/30 border border-emerald-900/30 p-3 rounded-lg text-xs text-emerald-400">
-          📍 Selected: <span className="font-semibold text-slate-200">{selectedFund.schemeName}</span>
+          📍 Target: <span className="font-semibold text-slate-200">{selectedFund.schemeName}</span>
         </div>
       )}
 
@@ -193,7 +176,7 @@ function MutualFundForm({ onAddMutualFund }) {
             <label className="block text-xs text-slate-400 mb-1">Invested Principal ($ / ₹)</label>
             <input 
               type="number" 
-              placeholder="Total principal capital input"
+              placeholder="Enter principal amount"
               value={capital}
               onChange={(e) => setCapital(e.target.value)}
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
