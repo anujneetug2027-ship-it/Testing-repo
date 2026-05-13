@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import NetWorthDisplay from './components/NetWorthDisplay';
 import AssetForm from './components/AssetForm';
-import MutualFundForm from './components/MutualFundForm'; // New Component Imported
+import MutualFundForm from './components/MutualFundForm'; // Imported New Component
 
 function App() {
   const [netWorth, setNetWorth] = useState(1000);
@@ -27,7 +27,7 @@ function App() {
         <AssetForm onAddAsset={handleAddAsset} />
         
         {/* Render the Mutual Fund Endpoint Engine Interface */}
-        <MutualFundForm onAddMutualFund={handleAddAddMutualFundValue} />
+        <MutualFundForm onAddMutualFund={handleAddMutualFundValue} />
       </div>
     </div>
   );
